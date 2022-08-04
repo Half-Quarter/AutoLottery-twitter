@@ -26,8 +26,8 @@ def init(url):
         cookie = json.load(f)
     chromeOptions = webdriver.ChromeOptions()
 
-    #chromeOptions.add_argument("--proxy-server=http://127.0.0.1:7890")
-    #chromeOptions.add_argument('headless')
+    # chromeOptions.add_argument("--proxy-server=http://127.0.0.1:7890")
+    # chromeOptions.add_argument('headless')
 
     capabilities = DesiredCapabilities.CHROME
     capabilities['goog:loggingPrefs'] = {"performance": "ALL"}  # newer: goog:loggingPrefs
@@ -44,7 +44,7 @@ def init(url):
     for item in cookie:
         if 'sameSite' in item:
             if item['sameSite'] != 'None' or item['sameSite'] != 'Strict' or item['sameSite'] != 'Lax':
-               item['sameSite'] = 'Strict'
+                item['sameSite'] = 'Strict'
         driver.add_cookie(item)
     driver.get(url)
     print('Initialize Success!')
@@ -55,9 +55,11 @@ def getUserInfo(driver, userPageUrl):
     driver.get(userPageUrl)
     nameXpath = '//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div[1]/div/div[1]/div/div/span[1]/span'
     uidXpath = '//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div[1]/div/div[2]/div/div/div/span'
-    introXpath = '//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/div/div/div[3]/div/div[1]/span[3]'
-    followingNumXpath = '//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/div/div/div[4]/div[1]/a/span[2]/span'
+    introXpath = '//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/div/div/div[3]/div/div[1]/span'
+    followingNumXpath = '//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/div/div/div[5]/div[1]/a/span[1]/span'
+    followeeNumXpath = '//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/div/div[2]/div[5]/div[2]/a/span[1]/span'
 
+    followeeNumXpath_2 = '//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/div/div/div[5]/div[2]/a/span[1]/span'
 
     name = WebDriverWait(driver, TIMEOUT).until(EC.presence_of_element_located((By.XPATH, nameXpath))).text
     uid = driver.find_element(By.XPATH, uidXpath).text
@@ -70,8 +72,20 @@ def getUserInfo(driver, userPageUrl):
             (driver.find_element(By.XPATH, followingNumXpath).text).replace(',', '').replace('.', '').replace('K',
                                                                                                               '000'))
     except:
-        followingNum = 1000
-    return [name, uid, intro, followingNum]
+        followingNum = 0
+    try:
+        followeeNum = int(
+            (driver.find_element(By.XPATH, followeeNumXpath).text).replace(',', '').replace('.', '').replace('K',
+                                                                                                             '000'))
+    except:
+        followeeNum = int(
+            (driver.find_element(By.XPATH, followeeNumXpath_2).text).replace(',', '').replace('.', '').replace('K',
+                                                                                                             '000'))
+
+    # print(name + " " + uid + " ")
+    # print(intro + "    ")
+    # print(followingNum)
+    return [name, uid, intro, followingNum, followeeNum]
 
 
 def getFollowingInfo(driver, userInfo):
@@ -152,32 +166,46 @@ def save():
 
 if __name__ == '__main__':
     driver = init(baseUrl)
-    startUserUrl = baseUrl + '/iirham6'
-    # 对第一个用户的处理
-    startUserInfo = getUserInfo(driver, startUserUrl)
-    USERINFOLIST.append(startUserInfo)
-    startUserFollowerNum = getFollowingInfo(driver, startUserInfo)
-    USERINFOLIST[0][-1] = startUserFollowerNum
+    users = ['hunterususioaji', 'mt_shiro893', 'Luxuria_SPM']
+    cur = 0
+    for id in users:
+        startUserUrl = baseUrl + '/' + id
+        startUserInfo = getUserInfo(driver, startUserUrl)
+        USERINFOLIST.append(startUserInfo)
+        cur = cur + 1
 
-    # 后续用户重复处理
-    levelCount = 0
-    parentsUserInfo = USERINFOLIST[0]
-    parentsUserNum, allUserNum = 1, 1
-    try:
-        while True:
-            nextUserInfo = USERINFOLIST[parentsUserNum]
-            trueFollowerNum = getFollowingInfo(driver, nextUserInfo)
-            USERINFOLIST[allUserNum][-1] = trueFollowerNum
-            allUserNum += trueFollowerNum
-            parentsUserNum += 1
-            print('number\t:', parentsUserNum)
-            if parentsUserNum == ALLPARENTSNUMBER:
-                break
-        savedUserInfoLen = len(USERINFOLIST)
-        for restUser in range(parentsUserNum + 1, savedUserInfoLen):
-            userUrl = baseUrl + '/' + USERINFOLIST[restUser][1]
-            trueFollowerNum = getUserInfo(driver, userUrl)
-            USERINFOLIST[restUser][-1] = trueFollowerNum
-            print('number\t:', restUser)
-    except:
-        save()
+    userInfoFrame = pd.DataFrame(USERINFOLIST, columns=['name', 'uid', 'intro', 'followingNum', 'followeeNum'])
+    fileDir = "Twitter_"
+    if not os.path.exists(fileDir):
+        os.makedirs(fileDir)
+    print(userInfoFrame)
+    userInfoFrame.to_csv(fileDir + "test.csv", sep='\t')
+    # startUserUrl = baseUrl + '/iirham6'
+    # # 对第一个用户的处理
+    # startUserInfo = getUserInfo(driver, startUserUrl)
+    # USERINFOLIST.append(startUserInfo)
+    # startUserFollowerNum = getFollowingInfo(driver, startUserInfo)
+    # USERINFOLIST[0][-1] = startUserFollowerNum
+    #
+    # # 后续用户重复处理
+    # levelCount = 0
+    # parentsUserInfo = USERINFOLIST[0]
+    # parentsUserNum, allUserNum = 1, 1
+    # try:
+    #     while True:
+    #         nextUserInfo = USERINFOLIST[parentsUserNum]
+    #         trueFollowerNum = getFollowingInfo(driver, nextUserInfo)
+    #         USERINFOLIST[allUserNum][-1] = trueFollowerNum
+    #         allUserNum += trueFollowerNum
+    #         parentsUserNum += 1
+    #         print('number\t:', parentsUserNum)
+    #         if parentsUserNum == ALLPARENTSNUMBER:
+    #             break
+    #     savedUserInfoLen = len(USERINFOLIST)
+    #     for restUser in range(parentsUserNum + 1, savedUserInfoLen):
+    #         userUrl = baseUrl + '/' + USERINFOLIST[restUser][1]
+    #         trueFollowerNum = getUserInfo(driver, userUrl)
+    #         USERINFOLIST[restUser][-1] = trueFollowerNum
+    #         print('number\t:', restUser)
+    # except:
+    #     save()
