@@ -9,9 +9,9 @@ file = open("result.txt", "w", encoding='UTF-8')
 cur = 0
 for i in sample:
     if i[0] == '@':
-        file.write(i)
-        userIDs.append(i)
-        print(userIDs[cur][1:])
+        file.write(i[1:])
+        userIDs.append(i[1:])
+        print(userIDs[cur])
         cur = cur + 1
 fp.close()
 file.close()

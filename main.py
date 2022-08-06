@@ -51,18 +51,45 @@ def init(url):
     return driver
 
 
+## 确认某个元素是否存在 因为推特的xpath会根据用户的信息变动而变动
+def judgeElementExist(xpath, true=None):
+    flag = True
+    try:
+        testnum = int(
+            driver.find_element(By.XPATH, xpath).text.replace(',', '').replace('.', '').replace('K', '000'))
+        return flag
+    except:
+        flag = False
+        return flag
+
+
 def getUserInfo(driver, userPageUrl):
     driver.get(userPageUrl)
     nameXpath = '//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div[1]/div/div[1]/div/div/span[1]/span'
     uidXpath = '//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div[1]/div/div[2]/div/div/div/span'
     introXpath = '//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/div/div/div[3]/div/div[1]/span'
     followingNumXpath = '//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/div/div/div[5]/div[1]/a/span[1]/span'
+    #粉丝数
     followeeNumXpath = '//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/div/div[2]/div[5]/div[2]/a/span[1]/span'
-
+    followeeNumXpath_1 = '//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div/div/div[2]/div/div/div/div[2]/div[4]/div[2]/a/span[1]/span'
     followeeNumXpath_2 = '//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/div/div/div[5]/div[2]/a/span[1]/span'
 
     name = WebDriverWait(driver, TIMEOUT).until(EC.presence_of_element_located((By.XPATH, nameXpath))).text
     uid = driver.find_element(By.XPATH, uidXpath).text
+    if judgeElementExist(followeeNumXpath):
+        followeeNum = int(
+            driver.find_element(By.XPATH, followeeNumXpath).text.replace(',', '').replace('.', '').replace('K',
+                                                                                                             '000'))
+    elif judgeElementExist(followeeNumXpath_2):
+        followeeNum = int(
+            driver.find_element(By.XPATH, followeeNumXpath_2).text.replace(',', '').replace('.', '').replace('K',
+                                                                                                               '000'))
+    else:
+        followeeNum = int(
+            driver.find_element(By.XPATH, followeeNumXpath_1).text.replace(',', '').replace('.', '').replace('K',
+                                                                                                               '000'))
+
+
     try:
         intro = driver.find_element(By.XPATH, introXpath).text
     except:
@@ -73,19 +100,29 @@ def getUserInfo(driver, userPageUrl):
                                                                                                               '000'))
     except:
         followingNum = 0
-    try:
-        followeeNum = int(
-            (driver.find_element(By.XPATH, followeeNumXpath).text).replace(',', '').replace('.', '').replace('K',
-                                                                                                             '000'))
-    except:
-        followeeNum = int(
-            (driver.find_element(By.XPATH, followeeNumXpath_2).text).replace(',', '').replace('.', '').replace('K',
-                                                                                                             '000'))
 
-    # print(name + " " + uid + " ")
-    # print(intro + "    ")
-    # print(followingNum)
+    ## 筛选条件
+    if followingNum - followeeNum > 1500 or followeeNum < 5:
+        return None
     return [name, uid, intro, followingNum, followeeNum]
+
+
+def getUserID_by_txt():
+    userIDs = []
+    fp = open("userdata.txt", "r", encoding='UTF-8')
+    sample = fp.readlines()
+
+    file = open("result.txt", "w", encoding='UTF-8')
+    cur = 0
+    for i in sample:
+        if i[0] == '@':
+            file.write(i[1:])
+            userIDs.append(i[1:])
+            print(userIDs[cur])
+            cur = cur + 1
+    fp.close()
+    file.close()
+    return userIDs
 
 
 def getFollowingInfo(driver, userInfo):
@@ -166,15 +203,17 @@ def save():
 
 if __name__ == '__main__':
     driver = init(baseUrl)
-    users = ['hunterususioaji', 'mt_shiro893', 'Luxuria_SPM']
+    users = getUserID_by_txt()
     cur = 0
     for id in users:
         startUserUrl = baseUrl + '/' + id
         startUserInfo = getUserInfo(driver, startUserUrl)
-        USERINFOLIST.append(startUserInfo)
+        if startUserInfo is not None:
+          USERINFOLIST.append(startUserInfo)
         cur = cur + 1
 
     userInfoFrame = pd.DataFrame(USERINFOLIST, columns=['name', 'uid', 'intro', 'followingNum', 'followeeNum'])
+    # userInfoFrame.loc[]
     fileDir = "Twitter_"
     if not os.path.exists(fileDir):
         os.makedirs(fileDir)
